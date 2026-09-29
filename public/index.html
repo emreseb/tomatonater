@@ -397,7 +397,7 @@
   let gid = null, token = null, seat = 0;
   let state = null, offset = 0, lastSeq = -1, firstRender = true, lastFlightLaunch = null;
   let pollTimer = null, tickTimer = null, meterRaf = null, settingUp = false, pendingLoc = null, pollActive = false;
-  let throwerImg = null, evaderImg = null;
+  let throwerImg = null, evaderImg = null, pollSeq = 0, pollApplied = 0, leftNotified = false;
 
   const screens = ["landing", "join", "setup", "waiting", "arena", "gameover"];
   const show = (name) => screens.forEach((s) => { $(s).hidden = s !== name; });
@@ -514,14 +514,26 @@
     const delay = (state && state.flight) ? 900 : 1800;
     pollTimer = setTimeout(pollLoop, delay);
   }
+  // Sequence guard: the adaptive loop and the manual poll after an action can
+  // both be in flight at once. Without this, a poll that STARTED before your
+  // throw can RESOLVE after it and overwrite the fresh state with stale data —
+  // the throw appears not to register until the next poll. Only apply the
+  // newest-started response.
   async function poll() {
     if (!gid) return;
+    const my = ++pollSeq;
     try {
       const st = await api(`state?id=${gid}&token=${token || ""}`);
+      if (my <= pollApplied) return;   // a newer poll already landed — drop this stale one
+      pollApplied = my;
       offset = st.now - Date.now();
       state = st;
       render(st);
-    } catch (e) { /* transient network — keep last state */ }
+    } catch (e) {
+      // duel was deleted (both players left) — stop hammering a dead id
+      if (String(e && e.message).includes("No such duel")) stopPolling();
+      /* otherwise transient network — keep last state */
+    }
   }
 
   // ================= RENDER =================
@@ -532,8 +544,26 @@
     if (settingUp) { show("setup"); updateWaitingDots(st); return; }
     if (!me || !me.located) { renderSetup(); return; }
     const opp = st.players[seat === 1 ? 1 : 0];
+    if (opp.left) { renderOpponentLeft(st); return; }
     if (!opp.joined || !opp.located) { show("waiting"); updateWaitingDots(st); return; }
     renderArena(st);
+  }
+
+  function renderOpponentLeft(st) {
+    stopMeter();
+    const opp = st.players[seat === 1 ? 1 : 0];
+    const me = st.players[seat - 1];
+    if (!leftNotified) {
+      leftNotified = true;
+      toast(`${opp.name || "Your opponent"} left the duel.`);
+      try { navigator.vibrate && navigator.vibrate(120); } catch (e) {}
+    }
+    show("gameover");
+    $("winAvatar").src = "pics/evade.png";
+    $("winTitle").textContent = `${opp.name || "Your opponent"} left the duel`;
+    $("finalScore").innerHTML = `${me.name || "You"} ${me.points} &nbsp;–&nbsp; ${opp.points} ${opp.name || "Them"}`;
+    $("winFlavor").textContent = "The duel's over — they can rejoin from their link, or you can start a fresh one.";
+    $("newBtn").textContent = "Leave & start new";
   }
 
   function updateWaitingDots(st) {
@@ -549,6 +579,7 @@
 
   function renderArena(st) {
     show("arena");
+    leftNotified = false;
     const first = firstRender;
     // Left column = YOU, right column = opponent — a fixed anchor so the turn is readable.
     const me = st.players[seat - 1], opp = st.players[seat === 1 ? 1 : 0];
@@ -719,6 +750,8 @@
   function renderGameOver(st) {
     show("gameover");
     stopMeter();
+    $("winAvatar").src = "pics/throw.png";
+    $("newBtn").textContent = "Start a new duel";
     const p1 = st.players[0], p2 = st.players[1];
     const win = st.winner, winP = st.players[win - 1], loseP = st.players[win === 1 ? 1 : 0];
     $("winTitle").textContent = (win === seat ? "You win! 🏆" : `${winP.name || "Player " + win} wins!`);
@@ -738,10 +771,17 @@
     try { await navigator.clipboard.writeText(myLink()); toast("Your private re-join link is copied — save it to return on any device."); }
     catch { prompt("Save this private re-join link to return on any device:", myLink()); }
   });
-  $("quitBtn").addEventListener("click", () => { if (confirm("Leave this duel?")) newDuel(); });
-  $("newBtn").addEventListener("click", newDuel);
+  // Tell the server we're leaving so the other player is notified; when both
+  // have left, the server deletes the duel and the session is terminated.
+  async function leave() {
+    stopPolling();
+    try { if (gid && token) await post("leave", { id: gid, token }); } catch (e) {}
+    newDuel();
+  }
+  $("quitBtn").addEventListener("click", () => { if (confirm("Leave this duel? Your opponent will be told you left.")) leave(); });
+  $("newBtn").addEventListener("click", leave);
   function newDuel() {
-    stopPolling(); gid = token = null; seat = 0; state = null; firstRender = true; lastSeq = -1; lastFlightLaunch = null; pendingLoc = null; settingUp = false;
+    stopPolling(); gid = token = null; seat = 0; state = null; firstRender = true; lastSeq = -1; lastFlightLaunch = null; pendingLoc = null; settingUp = false; pollSeq = 0; pollApplied = 0;
     history.replaceState(null, "", location.pathname);
     initLanding();
   }

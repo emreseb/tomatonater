@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS games (
   p1_points     INTEGER NOT NULL DEFAULT 0,      -- score = successful splats landed
   p1_coins      INTEGER NOT NULL DEFAULT 0,      -- future shop currency
   p1_upgrades   TEXT NOT NULL DEFAULT '{}',      -- future: {speedTier, cosmetics:{cat,tomato,bg}, items:{...}}
+  p1_left       INTEGER NOT NULL DEFAULT 0,      -- 1 once this player leaves; both left -> row deleted
 
   -- Player 2
   p2_token      TEXT,
@@ -32,6 +33,7 @@ CREATE TABLE IF NOT EXISTS games (
   p2_points     INTEGER NOT NULL DEFAULT 0,
   p2_coins      INTEGER NOT NULL DEFAULT 0,
   p2_upgrades   TEXT NOT NULL DEFAULT '{}',
+  p2_left       INTEGER NOT NULL DEFAULT 0,
 
   -- The tomato currently in flight (all NULL when nothing is flying)
   flight_from   INTEGER,   -- seat that threw (1 | 2)

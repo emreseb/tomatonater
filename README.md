@@ -91,7 +91,9 @@ Your game is live at `https://tomatonater.pages.dev`.
 
 ## Data model (`games` table)
 
-One row per duel holds everything: both players (name, location, points, coins), whose turn it is, the round, and the tomato currently in flight. Per-player `*_coins` and `*_upgrades` (JSON) columns are already there for the future **shop** — speed tiers, power-ups, and cosmetics — so adding it won't need a schema migration.
+One row per duel holds everything: both players (name, location, points, coins, `*_left`), whose turn it is, the round, and the tomato currently in flight. Per-player `*_coins` and `*_upgrades` (JSON) columns are already there for the future **shop** — speed tiers, power-ups, and cosmetics — so adding it won't need a schema migration.
+
+**Leaving:** `POST /api/leave` marks a player's `*_left` flag; the other player is shown "they left." When **both** have left, the row is deleted and the session is terminated. A player who re-opens their link and polls again has their own flag auto-cleared (rejoin). If you add columns to `schema.sql` later, migrate the live DB with `ALTER TABLE games ADD COLUMN … ` (a re-run of `schema.sql` won't add columns to an existing table).
 
 To wipe all games during testing:
 

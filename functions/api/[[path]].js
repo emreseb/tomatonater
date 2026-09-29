@@ -93,10 +93,10 @@ function publicState(g, seat) {
     players: [
       { seat: 1, name: g.p1_name, city: g.p1_city, points: g.p1_points,
         coins: g.p1_coins, level: levelFor(g.p1_points), speed: speedFor(g.p1_points),
-        located: g.p1_lat != null, joined: g.p1_token != null },
+        located: g.p1_lat != null, joined: g.p1_token != null, left: !!g.p1_left },
       { seat: 2, name: g.p2_name, city: g.p2_city, points: g.p2_points,
         coins: g.p2_coins, level: levelFor(g.p2_points), speed: speedFor(g.p2_points),
-        located: g.p2_lat != null, joined: g.p2_token != null },
+        located: g.p2_lat != null, joined: g.p2_token != null, left: !!g.p2_left },
     ],
     flight: flying ? {
       from: g.flight_from,
@@ -238,7 +238,33 @@ async function state(env, url) {
   let g = await getGame(env, id);
   if (!g) return err("No such duel.", 404);
   g = await maybeResolve(env, g);
-  return json(publicState(g, seatOf(g, token)));
+  // If the requester left earlier but is polling again, they're back — clear it.
+  const seat = seatOf(g, token);
+  if (seat && (seat === 1 ? g.p1_left : g.p2_left)) {
+    await env.DB.prepare(`UPDATE games SET ${seat === 1 ? "p1_left" : "p2_left"}=0, updated_at=? WHERE id=?`)
+      .bind(Date.now(), g.id).run();
+    g = await getGame(env, g.id);
+  }
+  return json(publicState(g, seat));
+}
+
+// A player leaves the duel. When BOTH have left, the row is deleted and the
+// session is terminated. Otherwise the flag lets the other player be told.
+async function doLeave(env, request) {
+  const b = await readBody(request);
+  const g = await getGame(env, b.id);
+  if (!g) return json({ ok: true, ended: true }); // already gone
+  const seat = seatOf(g, b.token);
+  if (!seat) return err("You're not a player in this duel.", 403);
+  const otherLeft = seat === 1 ? g.p2_left : g.p1_left;
+  if (otherLeft || !g.p2_token) {
+    // both have left (or there was never a second player) — terminate the session
+    await env.DB.prepare("DELETE FROM games WHERE id=?").bind(g.id).run();
+    return json({ ok: true, ended: true });
+  }
+  await env.DB.prepare(`UPDATE games SET ${seat === 1 ? "p1_left" : "p2_left"}=1, updated_at=? WHERE id=?`)
+    .bind(Date.now(), g.id).run();
+  return json({ ok: true, ended: false });
 }
 
 export async function onRequest(context) {
@@ -253,6 +279,7 @@ export async function onRequest(context) {
     if (method === "POST" && route === "setup") return await setup(env, request);
     if (method === "POST" && route === "throw") return await doThrow(env, request);
     if (method === "POST" && route === "dodge") return await doDodge(env, request);
+    if (method === "POST" && route === "leave") return await doLeave(env, request);
     if (method === "GET" && route === "state") return await state(env, url);
     return err("Not found.", 404);
   } catch (e) {
