@@ -42,8 +42,10 @@ wrangler d1 execute tomatonater --remote --file=./schema.sql
 
 ### 3. Run it locally (optional but recommended)
 
+The static site lives in `public/`; the API lives in `functions/`. Point dev at `public`:
+
 ```bash
-wrangler pages dev .
+wrangler pages dev public
 ```
 
 Open the printed URL (e.g. http://localhost:8788). Geolocation works on `localhost`.
@@ -53,21 +55,22 @@ Open a second browser/incognito window with the same `?g=...` link to play both 
 
 ## Deploy to Cloudflare Pages
 
-```bash
-wrangler pages deploy .
-```
-
-The first deploy asks to create a Pages project (call it `tomatonater`).
-
-**Bind the database to the Pages project** (required, one time):
-Cloudflare dashboard → **Workers & Pages → tomatonater → Settings → Functions → D1 database bindings** →
-add a binding named **`DB`** pointing to the `tomatonater` database. Then redeploy:
+Only `public/` is served (so `wrangler.toml`, `schema.sql`, etc. stay private). The
+project's production branch is **`production`**, so always deploy with `--branch production`
+— otherwise it goes to a preview URL and `tomatonater.pages.dev` won't update:
 
 ```bash
-wrangler pages deploy .
+wrangler pages deploy public --branch production
 ```
 
-Your game is now live at `https://tomatonater.pages.app` (or your custom domain).
+The **`DB`** binding is applied automatically from `wrangler.toml` on every deploy — no
+dashboard step needed. (If you ever move the D1 binding out of `wrangler.toml`, add it under
+**Workers & Pages → tomatonater → Settings → Functions → D1 database bindings** instead.)
+
+Your game is live at `https://tomatonater.pages.dev`.
+
+> Tip: to check the live site from a script you'll hit Cloudflare's bot filter (empty/403
+> responses). Check it in a real browser instead.
 
 > Geolocation and the clipboard "Copy" button require **HTTPS**, which Cloudflare Pages gives you automatically. They will not work if you open `index.html` as a local file.
 

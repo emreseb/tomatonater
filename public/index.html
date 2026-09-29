@@ -284,6 +284,7 @@
       <input id="shareLink" type="text" readonly />
       <button class="btn butter" id="copyBtn" style="font-size:.95rem">Copy</button>
     </div>
+    <p class="muted center" style="font-size:.78rem; margin-top:.5rem">Safe to share — this invite link doesn't include your seat.</p>
     <div class="status-dots">
       <div class="row"><span class="dot on"></span><span id="st1">You're in.</span></div>
       <div class="row"><span class="dot" id="dot2"></span><span id="st2">Waiting for your opponent to join…</span></div>
@@ -347,7 +348,10 @@
       </div>
     </div>
 
-    <div class="center mt"><button class="btn ghost" id="quitBtn" style="font-size:.9rem; padding:.55rem 1rem">Leave duel</button></div>
+    <div class="center mt" style="display:flex; gap:.5rem; justify-content:center; flex-wrap:wrap">
+      <button class="btn ghost" id="rejoinBtn" style="font-size:.9rem; padding:.55rem 1rem">🔗 My re-join link</button>
+      <button class="btn ghost" id="quitBtn" style="font-size:.9rem; padding:.55rem 1rem">Leave duel</button>
+    </div>
   </section>
 
   <!-- ===== GAME OVER ===== -->
@@ -381,6 +385,13 @@
   const loadCreds = () => { try { return JSON.parse(localStorage.getItem(CRED_KEY)) || {}; } catch { return {}; } };
   const saveCred = (id, cred) => { const all = loadCreds(); all[id] = cred; try { localStorage.setItem(CRED_KEY, JSON.stringify(all)); } catch {} };
   const getCred = (id) => loadCreds()[id];
+
+  // ---- links ----
+  // inviteLink is tokenless and safe to share (the opponent joins the open seat).
+  // myLink carries your token so opening it restores YOUR seat on any device/browser.
+  const inviteLink = () => location.origin + location.pathname + "?g=" + gid;
+  const myLink = () => inviteLink() + "&t=" + token;
+  const setMyUrl = () => { try { history.replaceState(null, "", myLink()); } catch (e) {} };
 
   // ---- app state ----
   let gid = null, token = null, seat = 0;
@@ -417,7 +428,7 @@
       const res = await post("game", { pace: getPace().dataset.pace, target: +getTarget().dataset.target });
       gid = res.id; token = res.token; seat = res.seat;
       saveCred(gid, { token, seat });
-      history.replaceState(null, "", "?g=" + gid);
+      setMyUrl();
       settingUp = true; renderSetup();
     } catch (e) { $("landErr").textContent = e.message; }
     finally { $("createBtn").disabled = false; }
@@ -430,6 +441,7 @@
       const res = await post("join", { id: gid });
       token = res.token; seat = res.seat;
       saveCred(gid, { token, seat });
+      setMyUrl();
       settingUp = true; renderSetup();
     } catch (e) { $("joinErr").textContent = e.message; $("joinBtn").disabled = false; }
   });
@@ -532,36 +544,55 @@
     const bothLoc = me.located && opp.located;
     $("dot3").classList.toggle("on", bothLoc);
     $("st3").textContent = bothLoc ? "Both located — starting!" : (me.located ? "Waiting for their location…" : "Set your location above.");
-    $("shareLink").value = location.origin + location.pathname + "?g=" + gid;
+    $("shareLink").value = inviteLink();
   }
 
   function renderArena(st) {
     show("arena");
-    const p1 = st.players[0], p2 = st.players[1];
-    $("name1").textContent = p1.name || "Player 1"; $("name2").textContent = p2.name || "Player 2";
-    $("city1").textContent = p1.city || ""; $("city2").textContent = p2.city || "";
-    $("score1").textContent = p1.points; $("score2").textContent = p2.points;
-    $("meta1").textContent = `Lv ${p1.level} · ${p1.speed} km/h`;
-    $("meta2").textContent = `Lv ${p2.level} · ${p2.speed} km/h`;
+    const first = firstRender;
+    // Left column = YOU, right column = opponent — a fixed anchor so the turn is readable.
+    const me = st.players[seat - 1], opp = st.players[seat === 1 ? 1 : 0];
+    $("name1").textContent = me.name || "You"; $("name2").textContent = opp.name || "Them";
+    $("city1").textContent = me.city || ""; $("city2").textContent = opp.city || "";
+    $("score1").textContent = me.points; $("score2").textContent = opp.points;
+    $("meta1").textContent = `Lv ${me.level} · ${me.speed} km/h`;
+    $("meta2").textContent = `Lv ${opp.level} · ${opp.speed} km/h`;
 
-    const throwerSeat = st.flight ? st.flight.from : st.thrower;
-    const c1 = $("crate1"), c2 = $("crate2");
-    [c1, c2].forEach((c) => c.classList.remove("active", "evader", "you"));
-    (throwerSeat === 1 ? c1 : c2).classList.add("active");
-    (throwerSeat === 1 ? c2 : c1).classList.add("active", "evader");
-    $("role1").textContent = throwerSeat === 1 ? "Thrower" : "Evader";
-    $("role2").textContent = throwerSeat === 1 ? "Evader" : "Thrower";
-    (seat === 1 ? c1 : c2).classList.add("you");
+    const iAmThrower = st.flight ? st.flight.from === seat : st.thrower === seat;
+    const cMe = $("crate1"), cOpp = $("crate2");
+    [cMe, cOpp].forEach((c) => c.classList.remove("active", "evader"));
+    (iAmThrower ? cMe : cOpp).classList.add("active");
+    (iAmThrower ? cOpp : cMe).classList.add("active", "evader");
+    $("role1").textContent = iAmThrower ? "Thrower" : "Evader";
+    $("role2").textContent = iAmThrower ? "Evader" : "Thrower";
+    cMe.classList.add("you");
+
+    // Swap the cat pictures so the current thrower holds the tomato and the
+    // evader is mid-dodge. Your cat is always on the left.
+    $("catL").src = iAmThrower ? "pics/throw.png" : "pics/evade.png";
+    $("catR").src = iAmThrower ? "pics/evade.png" : "pics/throw.png";
+    throwerImg = iAmThrower ? $("catL") : $("catR");
+    evaderImg = iAmThrower ? $("catR") : $("catL");
+    // highlight ring on whoever must act right now (thrower if idle, evader if a tomato is flying)
+    const actorFighter = st.flight ? (iAmThrower ? "fighterR" : "fighterL") : (iAmThrower ? "fighterL" : "fighterR");
+    ["fighterL", "fighterR"].forEach((f) => $(f).classList.toggle("turn", f === actorFighter));
 
     // fire animation for a newly-resolved event
     if (st.event && st.event.seq > lastSeq) {
-      if (!firstRender) playEvent(st.event, st);
+      if (!first) playEvent(st.event, st);
       lastSeq = st.event.seq;
     }
+
+    // loud alert the moment a NEW tomato is thrown at me
+    if (st.flight && st.flight.evader === seat && st.flight.launch !== lastFlightLaunch && !first) {
+      fireCallout("INCOMING!", "wild");
+      toast(`${opp.name || "They"} threw a tomato — DODGE!`);
+      try { navigator.vibrate && navigator.vibrate([90, 50, 120]); } catch (e) {}
+    }
+    lastFlightLaunch = st.flight ? st.flight.launch : null;
     firstRender = false;
 
     // control deck
-    const opp = st.players[seat === 1 ? 1 : 0];
     ["ctlThrow", "ctlWaitThrow", "ctlWaitLand", "ctlDodge"].forEach((c) => $(c).hidden = true);
     if (st.flight) {
       stopMeter();
@@ -607,10 +638,13 @@
     const t = $("tomato"), stage = $("stage");
     const total = st.flight.arrive - st.flight.launch;
     const prog = Math.min(1, Math.max(0, (serverNow() - st.flight.launch) / total));
-    const w = stage.clientWidth, span = w - 40 - stage.clientWidth * 0.16;
-    // thrower is always drawn on the left; tomato flies left -> right toward the evader
+    const w = stage.clientWidth, tW = t.offsetWidth || 35;
+    const leftX = w * 0.14, rightX = w - tW - w * 0.14;
+    // fly from the thrower's side to the evader's side (you are always on the left)
+    const fromMe = st.flight.from === seat;
+    const sx = fromMe ? leftX : rightX, ex = fromMe ? rightX : leftX;
     t.style.opacity = 1; t.classList.add("spin");
-    t.style.left = (stage.clientWidth * 0.14 + span * prog) + "px";
+    t.style.left = (sx + (ex - sx) * prog) + "px";
     t.style.top = (42 - Math.sin(prog * Math.PI) * 14) + "%";
   }
 
@@ -633,7 +667,7 @@
   $("throwBtn").addEventListener("click", async () => {
     const p = Math.round(power); stopMeter();
     $("throwBtn").disabled = true;
-    $("thrower").classList.add("chuck"); setTimeout(() => $("thrower").classList.remove("chuck"), 300);
+    if (throwerImg) { throwerImg.classList.add("chuck"); setTimeout(() => throwerImg.classList.remove("chuck"), 300); }
     try {
       const res = await post("throw", { id: gid, token, power: p });
       if (res.wild) { fireCallout("WILD THROW!", "wild"); toast("Too much power — it sailed over the fence. Turn lost!"); }
@@ -646,7 +680,7 @@
     $("dodgeBtn").disabled = true;
     try {
       const res = await post("dodge", { id: gid, token });
-      if (res.dodged) { $("evader").classList.add("dodge"); setTimeout(() => $("evader").classList.remove("dodge"), 500); fireCallout("DODGED!", "safe"); }
+      if (res.dodged) { if (evaderImg) { evaderImg.classList.add("dodge"); setTimeout(() => evaderImg.classList.remove("dodge"), 500); } fireCallout("DODGED!", "safe"); }
       else { toast("Too late — splat!"); }
       await poll(true);
     } catch (e) { toast(e.message); $("dodgeBtn").disabled = false; }
@@ -656,13 +690,13 @@
   function playEvent(ev, st) {
     if (ev.type === "splat") {
       $("stage").classList.add("shake"); setTimeout(() => $("stage").classList.remove("shake"), 300);
-      splatMark(); fireCallout("SPLAT!", "splat");
+      splatMark(ev.to === seat ? "left" : "right"); fireCallout("SPLAT!", "splat");
       const by = st.players[ev.by - 1].name || ("Player " + ev.by);
       const to = st.players[ev.to - 1].name || ("Player " + ev.to);
       toast(ev.by === seat ? `You splatted ${to}! +1` : `${by} splatted you!`);
       if (ev.levelUp) setTimeout(() => toast(`${by} leveled up — faster tomatoes now!`), 900);
     } else if (ev.type === "dodged") {
-      $("evader").classList.add("dodge"); setTimeout(() => $("evader").classList.remove("dodge"), 500);
+      if (evaderImg) { evaderImg.classList.add("dodge"); setTimeout(() => evaderImg.classList.remove("dodge"), 500); }
       fireCallout("DODGED!", "safe");
     } else if (ev.type === "wild") {
       fireCallout("WILD THROW!", "wild");
@@ -672,10 +706,11 @@
     const c = $("callout"); c.textContent = text; c.className = "callout show " + (cls || "");
     setTimeout(() => (c.className = "callout"), 1100);
   }
-  function splatMark() {
+  function splatMark(side) {
     const s = document.createElement("div"); s.className = "splatmark";
     s.innerHTML = `<svg viewBox="0 0 100 100"><g fill="#EA3B22"><circle cx="50" cy="50" r="30"/><circle cx="24" cy="40" r="10"/><circle cx="78" cy="46" r="12"/><circle cx="40" cy="80" r="9"/><circle cx="70" cy="78" r="7"/></g><g fill="#C22A15"><circle cx="45" cy="46" r="4"/><circle cx="60" cy="56" r="3"/></g></svg>`;
-    s.style.right = "1.2rem"; s.style.top = "30%";
+    if (side === "left") s.style.left = "1.2rem"; else s.style.right = "1.2rem";
+    s.style.top = "30%";
     $("stage").appendChild(s); requestAnimationFrame(() => s.classList.add("go"));
     setTimeout(() => s.remove(), 2200);
   }
@@ -698,10 +733,15 @@
     try { await navigator.clipboard.writeText(link); toast("Link copied!"); }
     catch { $("shareLink").select(); toast("Select and copy the link."); }
   });
+  $("rejoinBtn").addEventListener("click", async () => {
+    if (!token) return;
+    try { await navigator.clipboard.writeText(myLink()); toast("Your private re-join link is copied — save it to return on any device."); }
+    catch { prompt("Save this private re-join link to return on any device:", myLink()); }
+  });
   $("quitBtn").addEventListener("click", () => { if (confirm("Leave this duel?")) newDuel(); });
   $("newBtn").addEventListener("click", newDuel);
   function newDuel() {
-    stopPolling(); gid = token = null; seat = 0; state = null; firstRender = true; lastSeq = -1; pendingLoc = null; settingUp = false;
+    stopPolling(); gid = token = null; seat = 0; state = null; firstRender = true; lastSeq = -1; lastFlightLaunch = null; pendingLoc = null; settingUp = false;
     history.replaceState(null, "", location.pathname);
     initLanding();
   }
@@ -722,12 +762,28 @@
   }
   async function boot() {
     startTick();
-    const urlId = new URL(location).searchParams.get("g");
+    const u = new URL(location);
+    const urlId = u.searchParams.get("g");
     if (!urlId) { initLanding(); return; }
     gid = urlId;
-    const cred = getCred(gid);
-    if (cred) { token = cred.token; seat = cred.seat; startPolling(); return; }
-    // new visitor to a shared link — offer to join (as seat 2)
+    // Resume our seat from a token in the link (works on any device) or from
+    // a stored credential. We verify the token with the server and learn our
+    // seat from its `you` field rather than trusting anything local.
+    const stored = getCred(gid);
+    const candidates = [...new Set([u.searchParams.get("t"), stored && stored.token].filter(Boolean))];
+    for (const cand of candidates) {
+      try {
+        const st = await api(`state?id=${gid}&token=${cand}`);
+        if (st.you) {
+          token = cand; seat = st.you;
+          saveCred(gid, { token, seat });
+          setMyUrl();
+          startPolling();
+          return;
+        }
+      } catch (e) { /* stale/unknown token — try the next, then the invite flow */ }
+    }
+    // no valid token — this is an invite link; offer to join the open seat
     try {
       const st = await api(`state?id=${gid}`);
       if (st.players[1].joined) {
