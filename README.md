@@ -1,0 +1,97 @@
+# 🍅 Tomatonater
+
+A two-player, two-phone tomato duel. You throw a tomato; it flies at 100 km/h across the real distance between your two locations; your opponent has until it lands to dodge. Miss and the thrower scores. Every 10 points → +10 km/h. First to the target wins.
+
+- **Frontend:** `index.html` + `pics/` (static)
+- **Backend:** Cloudflare Pages Function in `functions/api/[[path]].js`
+- **Database:** Cloudflare **D1** (SQLite), schema in `schema.sql`
+
+Everything runs on Cloudflare's free tier.
+
+---
+
+## One-time setup
+
+You need the Cloudflare CLI (`wrangler`) and a free Cloudflare account.
+
+```bash
+npm install -g wrangler        # or: npx wrangler ...
+wrangler login                 # opens the browser to authorize
+```
+
+### 1. Create the database
+
+```bash
+wrangler d1 create tomatonater
+```
+
+This prints a `database_id`. Open `wrangler.toml` and paste it into:
+
+```toml
+database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
+```
+
+### 2. Create the table
+
+```bash
+# local copy (for `wrangler pages dev`)
+wrangler d1 execute tomatonater --local  --file=./schema.sql
+# the real remote database
+wrangler d1 execute tomatonater --remote --file=./schema.sql
+```
+
+### 3. Run it locally (optional but recommended)
+
+```bash
+wrangler pages dev .
+```
+
+Open the printed URL (e.g. http://localhost:8788). Geolocation works on `localhost`.
+Open a second browser/incognito window with the same `?g=...` link to play both sides.
+
+---
+
+## Deploy to Cloudflare Pages
+
+```bash
+wrangler pages deploy .
+```
+
+The first deploy asks to create a Pages project (call it `tomatonater`).
+
+**Bind the database to the Pages project** (required, one time):
+Cloudflare dashboard → **Workers & Pages → tomatonater → Settings → Functions → D1 database bindings** →
+add a binding named **`DB`** pointing to the `tomatonater` database. Then redeploy:
+
+```bash
+wrangler pages deploy .
+```
+
+Your game is now live at `https://tomatonater.pages.app` (or your custom domain).
+
+> Geolocation and the clipboard "Copy" button require **HTTPS**, which Cloudflare Pages gives you automatically. They will not work if you open `index.html` as a local file.
+
+---
+
+## How to play
+
+1. One of you opens the site and taps **Start the duel** (pick **Blitz** to play now, or **Real flight** for the slow romantic version).
+2. Set your name and share your location, then **send the link** to the other person.
+3. They open the link on their phone, join, and set their location.
+4. Take turns: the thrower charges a **power meter** and throws; the evader taps **DODGE** before the tomato lands.
+
+### Pace
+- **Blitz** — real flight time compressed to ~20 s–4 min. Good for a live session.
+- **Real flight** — literal 100 km/h. A long-distance tomato can take hours; dodge whenever you next open the app. (Push notifications are a natural future add-on so you get pinged when one is incoming.)
+
+---
+
+## Data model (`games` table)
+
+One row per duel holds everything: both players (name, location, points, coins), whose turn it is, the round, and the tomato currently in flight. Per-player `*_coins` and `*_upgrades` (JSON) columns are already there for the future **shop** — speed tiers, power-ups, and cosmetics — so adding it won't need a schema migration.
+
+To wipe all games during testing:
+
+```bash
+wrangler d1 execute tomatonater --remote --command "DELETE FROM games;"
+```

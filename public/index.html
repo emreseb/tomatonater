@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Tomatonater</title>
+<meta name="description" content="A two-player, two-phone tomato duel. Throw a tomato across the map — your opponent has until it lands to dodge." />
+<meta name="theme-color" content="#1B3A2A" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --garden:#1B3A2A; --garden-2:#20472E; --crate:#2A5638; --crate-edge:#16311F;
+    --cream:#FBF4E2; --cream-dim:#C3D2B7;
+    --tomato:#EA3B22; --tomato-2:#C22A15; --tomato-3:#8F1E0E;
+    --butter:#F5CE63; --butter-2:#E7B23F; --leaf:#86C06A; --ink:#122619;
+    --shadow: 0 .5rem 0 rgba(0,0,0,.28);
+    --stall-h: 4.6rem;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0; height:100%}
+  body{
+    background:radial-gradient(120% 90% at 50% -10%, #24512F 0%, var(--garden) 55%, #14301F 100%);
+    color:var(--cream);
+    font-family:"Nunito", system-ui, -apple-system, Segoe UI, Roboto, sans-serif; font-weight:600;
+    -webkit-font-smoothing:antialiased; min-height:100%;
+    display:flex; flex-direction:column; overflow-x:hidden;
+  }
+  .wrap{width:100%; max-width:44rem; margin:0 auto; padding:0 1rem 2.5rem; flex:1; display:flex; flex-direction:column}
+
+  header.stall{
+    position:relative; height:var(--stall-h);
+    background:repeating-linear-gradient(90deg, var(--tomato) 0 2.2rem, var(--cream) 2.2rem 4.4rem);
+    border-bottom:.35rem solid var(--tomato-3); box-shadow:0 .5rem 1.2rem rgba(0,0,0,.35);
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  header.stall::after{
+    content:""; position:absolute; left:0; right:0; bottom:-1px; height:1.1rem;
+    background:radial-gradient(1.1rem 1.1rem at .55rem 0, transparent 66%, var(--garden) 67%) repeat-x;
+    background-size:1.1rem 1.1rem;
+  }
+  .wordmark{
+    font-family:"Fredoka", sans-serif; font-weight:700;
+    font-size:clamp(1.5rem, 6vw, 2.4rem); letter-spacing:.02em; line-height:1; color:var(--butter);
+    text-shadow: 0 .12rem 0 var(--tomato-3), 0 .2rem 0 var(--tomato-3), .12rem .12rem 0 rgba(0,0,0,.25);
+    padding:.2rem .8rem; background:rgba(20,48,31,.82); border-radius:.8rem;
+    display:inline-flex; align-items:center; z-index:1;
+  }
+  .wordmark .o{color:var(--tomato); text-shadow:0 .12rem 0 var(--tomato-3)}
+
+  h1,h2,h3{font-family:"Fredoka", sans-serif; font-weight:600; margin:0}
+  [hidden]{display:none !important}
+  .screen{margin-top:1.4rem}
+
+  .panel{
+    background:linear-gradient(180deg, var(--crate) 0%, #245030 100%);
+    border:.2rem solid var(--crate-edge); border-radius:1rem;
+    box-shadow:var(--shadow), inset 0 .1rem 0 rgba(255,255,255,.06); padding:1.3rem;
+  }
+  .lede{text-align:center; margin:1.2rem auto .2rem; max-width:32rem}
+  .lede h2{font-size:clamp(1.35rem,4.5vw,1.9rem); color:var(--cream)}
+  .lede p{color:var(--cream-dim); font-weight:700; margin:.5rem 0 0; line-height:1.5}
+  .lede p b{color:var(--butter); font-weight:800}
+
+  .hero-cats{display:flex; align-items:flex-end; justify-content:center; gap:.4rem; margin:.6rem 0 .2rem}
+  .hero-cats img{width:6.2rem; max-width:30%; filter:drop-shadow(0 .3rem .3rem rgba(0,0,0,.4))}
+  .hero-cats .evc{transform:scaleX(-1)}
+  .hero-cats .mid{font-size:1.6rem; padding-bottom:1rem}
+
+  label{display:block; font-size:.82rem; font-weight:800; color:var(--cream-dim); margin:.9rem 0 .35rem}
+  input[type=text]{
+    width:100%; font-family:inherit; font-weight:700; font-size:1rem; color:var(--ink);
+    background:var(--cream); border:.15rem solid var(--crate-edge); border-radius:.6rem; padding:.65rem .7rem;
+  }
+  input[type=text]::placeholder{color:#8a9683}
+
+  .opt-row{margin-top:1rem}
+  .opts{display:flex; gap:.5rem; flex-wrap:wrap}
+  .chip{
+    font-family:"Fredoka",sans-serif; font-weight:500; font-size:1rem; text-align:left;
+    background:var(--garden-2); color:var(--cream); border:.15rem solid var(--crate-edge);
+    padding:.55rem .9rem; border-radius:.6rem; cursor:pointer; flex:1; min-width:8rem;
+  }
+  .chip small{display:block; font-weight:700; font-size:.72rem; color:var(--cream-dim); margin-top:.15rem}
+  .chip[aria-pressed=true]{background:var(--butter); color:var(--ink); border-color:var(--butter-2)}
+  .chip[aria-pressed=true] small{color:#5c4a1e}
+  .chip.sm{flex:0 0 auto; min-width:0; text-align:center}
+
+  .btn{
+    font-family:"Fredoka",sans-serif; font-weight:600; font-size:1.15rem; line-height:1; color:var(--cream);
+    background:linear-gradient(180deg,#347346,#24522f); border:0; border-radius:.85rem; padding:.95rem 1.6rem;
+    cursor:pointer; box-shadow:0 .35rem 0 var(--crate-edge); transition:transform .06s, box-shadow .06s;
+  }
+  .btn:active{transform:translateY(.2rem); box-shadow:0 .15rem 0 var(--crate-edge)}
+  .btn.big{width:100%; font-size:1.4rem; padding:1.15rem}
+  .btn.tomato{background:linear-gradient(180deg,#ff5638,var(--tomato)); box-shadow:0 .35rem 0 var(--tomato-3)}
+  .btn.tomato:active{box-shadow:0 .15rem 0 var(--tomato-3)}
+  .btn.butter{background:linear-gradient(180deg,#ffd97a,var(--butter)); color:var(--ink); box-shadow:0 .35rem 0 var(--butter-2)}
+  .btn.butter:active{box-shadow:0 .15rem 0 var(--butter-2)}
+  .btn.ghost{background:var(--garden-2); box-shadow:0 .35rem 0 var(--crate-edge)}
+  .btn:focus-visible{outline:.2rem solid var(--butter); outline-offset:.2rem}
+  .btn:disabled{opacity:.5; cursor:not-allowed}
+  .mt{margin-top:1.2rem}
+  .center{text-align:center}
+  .muted{color:var(--cream-dim); font-weight:700; font-size:.9rem; line-height:1.5}
+  .errline{color:#ffd0c6; font-weight:800; min-height:1.2rem; margin-top:.6rem; text-align:center}
+
+  /* share box */
+  .share{display:flex; gap:.5rem; margin-top:.7rem}
+  .share input{flex:1; font-size:.9rem}
+  .status-dots{display:flex; flex-direction:column; gap:.6rem; margin-top:1.1rem}
+  .status-dots .row{display:flex; align-items:center; gap:.6rem; font-weight:800}
+  .dot{width:.8rem; height:.8rem; border-radius:50%; background:var(--garden-2); border:.12rem solid var(--crate-edge); flex:0 0 auto}
+  .dot.on{background:var(--leaf); border-color:#4d7d3a; box-shadow:0 0 .5rem rgba(134,192,106,.7)}
+  .geo-status{margin-top:.7rem; color:var(--cream-dim); font-weight:700; font-size:.9rem; min-height:1.2rem}
+
+  /* scoreboard */
+  .board{display:grid; grid-template-columns:1fr auto 1fr; gap:.7rem; align-items:stretch; margin-top:.4rem}
+  .crate{
+    background:linear-gradient(180deg,#7a5233,#5c3c24); border:.2rem solid #3f2817; border-radius:.9rem;
+    padding:.7rem .7rem; box-shadow:inset 0 0 0 .2rem rgba(255,255,255,.05), var(--shadow);
+    position:relative; text-align:center; transition:transform .2s, box-shadow .2s;
+  }
+  .crate .pname{font-family:"Fredoka",sans-serif; font-weight:600; font-size:1rem; color:var(--butter); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .crate .pcity{font-size:.68rem; font-weight:800; color:#e9d6b4; opacity:.8; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .crate .score{font-family:"Fredoka",sans-serif; font-weight:700; font-size:2.4rem; line-height:1.1; color:var(--cream); text-shadow:0 .15rem 0 rgba(0,0,0,.3)}
+  .crate .meta{font-size:.72rem; font-weight:800; color:#f0e2c6}
+  .crate.active{transform:translateY(-.2rem); box-shadow:0 0 0 .18rem var(--butter), var(--shadow)}
+  .crate .role{position:absolute; top:-.7rem; left:50%; transform:translateX(-50%); font-family:"Fredoka",sans-serif; font-size:.68rem; font-weight:500; padding:.15rem .5rem; border-radius:.4rem; background:var(--garden-2); color:var(--cream-dim); white-space:nowrap; opacity:0; transition:opacity .2s}
+  .crate.active .role{opacity:1; background:var(--tomato); color:var(--cream)}
+  .crate.active.evader .role{background:var(--leaf); color:var(--ink)}
+  .crate.you::after{content:"you"; position:absolute; bottom:-.6rem; left:50%; transform:translateX(-50%); font-size:.6rem; font-weight:800; background:var(--butter); color:var(--ink); padding:.05rem .4rem; border-radius:.3rem}
+  .vs{align-self:center; font-family:"Fredoka",sans-serif; font-weight:700; color:var(--cream-dim); font-size:1.05rem}
+
+  .stage{
+    position:relative; margin-top:1rem; height:13rem; border-radius:1rem; overflow:hidden;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.12)),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 2.4rem, transparent 2.4rem 4.8rem),
+      linear-gradient(180deg,#2c5b39,#20472e 62%, #7a5a3a 62%, #6a4c2f 100%);
+    border:.2rem solid var(--crate-edge); box-shadow:inset 0 0 3rem rgba(0,0,0,.35);
+  }
+  .fighter{position:absolute; bottom:.6rem; width:6rem; max-width:32%; z-index:2}
+  #fighterL{left:.6rem}
+  #fighterR{right:.6rem}
+  .facing{display:inline-block; width:100%}
+  .facing.flip{transform:scaleX(-1)}
+  .catimg{display:block; width:100%; filter:drop-shadow(0 .3rem .3rem rgba(0,0,0,.4))}
+  .catimg.chuck{animation:chuck .28s ease}
+  .catimg.dodge{animation:dodge .5s ease}
+  .fighter.turn::after{content:""; position:absolute; inset:-.35rem -.35rem .1rem; border-radius:50%; box-shadow:0 0 0 .18rem var(--butter); opacity:.0; animation:pulse 1.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:.25}50%{opacity:.85}}
+  @keyframes dodge{0%{transform:translateY(0)}30%{transform:translate(-1.4rem,-2rem) rotate(-12deg)}100%{transform:translateY(0)}}
+  @keyframes chuck{0%{transform:rotate(0)}40%{transform:rotate(-9deg) translateX(-.3rem)}100%{transform:rotate(0)}}
+  .stage.shake{animation:shake .3s}
+  @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-.5rem)}50%{transform:translateX(.5rem)}80%{transform:translateX(-.3rem)}}
+
+  #tomato{position:absolute; top:42%; left:0; width:2.2rem; height:2.2rem; z-index:3; opacity:0; pointer-events:none; will-change:transform}
+  #tomato svg{display:block; width:100%; height:100%; filter:drop-shadow(0 .2rem .15rem rgba(0,0,0,.4))}
+  #tomato.spin{animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .callout{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; z-index:4;
+    font-family:"Fredoka",sans-serif; font-weight:700; text-align:center; pointer-events:none;
+    font-size:clamp(1.6rem,7vw,2.8rem); color:var(--cream); text-shadow:0 .2rem 0 rgba(0,0,0,.4); opacity:0}
+  .callout.show{animation:pop 1.1s ease}
+  .callout.splat{color:var(--tomato)} .callout.safe{color:var(--leaf)} .callout.wild{color:var(--butter)}
+  @keyframes pop{0%{opacity:0; transform:scale(.6)}15%{opacity:1; transform:scale(1.08)}75%{opacity:1; transform:scale(1)}100%{opacity:0; transform:scale(1)}}
+  .splatmark{position:absolute; z-index:2; width:4.5rem; height:4.5rem; opacity:0}
+  .splatmark.go{animation:splatpop .5s ease forwards}
+  @keyframes splatpop{0%{opacity:0; transform:scale(.2)}60%{opacity:1; transform:scale(1.1)}100%{opacity:.92; transform:scale(1)}}
+
+  .deck{margin-top:1rem; min-height:8rem}
+  .prompt{font-family:"Fredoka",sans-serif; font-weight:500; text-align:center; font-size:1.1rem; margin-bottom:.8rem}
+  .prompt b{color:var(--butter)} .prompt .evb{color:var(--leaf)}
+  .countdown{font-family:"Fredoka",sans-serif; font-weight:700; text-align:center; font-size:2rem; color:var(--cream); margin:.2rem 0 .7rem; letter-spacing:.02em}
+  .countdown.soon{color:var(--tomato)}
+
+  .meter{position:relative; height:2.2rem; background:var(--garden-2); border:.15rem solid var(--crate-edge); border-radius:1.1rem; overflow:hidden; margin-bottom:.85rem}
+  .meter .fill{position:absolute; inset:0 auto 0 0; width:0%; background:linear-gradient(90deg,var(--leaf) 0 55%, var(--butter) 55% 78%, var(--tomato) 78% 100%)}
+  .meter .danger{position:absolute; top:0; bottom:0; left:90%; right:0; background:repeating-linear-gradient(45deg, rgba(143,30,14,.55) 0 .4rem, transparent .4rem .8rem)}
+  .meter .lbl{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:"Fredoka",sans-serif; font-weight:600; color:var(--cream); text-shadow:0 1px 2px rgba(0,0,0,.5); font-size:.95rem}
+  .hint{text-align:center; color:var(--cream-dim); font-weight:700; font-size:.82rem; margin-top:.65rem}
+  .waiting-anim{text-align:center; font-size:2.2rem; margin:.4rem 0; animation:bob 1.6s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-.35rem)}}
+
+  #gameover{text-align:center}
+  #gameover .winavatar{width:7rem; height:7rem; object-fit:contain; margin:.3rem auto; filter:drop-shadow(0 .4rem .3rem rgba(0,0,0,.4))}
+  #gameover h2{font-size:clamp(1.8rem,7vw,2.6rem); color:var(--butter)}
+  #gameover .finalscore{font-family:"Fredoka",sans-serif; font-weight:600; font-size:1.4rem; margin:.4rem 0 .8rem}
+
+  footer{text-align:center; color:var(--cream-dim); font-weight:700; font-size:.8rem; padding:1.2rem 1rem; opacity:.75}
+  footer .heart{color:var(--tomato)}
+  .toast{position:fixed; left:50%; bottom:1.2rem; transform:translateX(-50%) translateY(2rem); background:var(--ink); color:var(--cream); font-weight:800; padding:.7rem 1.1rem; border-radius:.7rem; box-shadow:0 .4rem 1rem rgba(0,0,0,.4); opacity:0; transition:.25s; z-index:50; max-width:90vw; text-align:center}
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (max-width:520px){
+    .stage{height:11rem} .fighter{width:5rem} .hero-cats img{width:5rem}
+    .crate .score{font-size:2rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    #tomato.spin,.stage.shake,.catimg.dodge,.catimg.chuck,.waiting-anim,.fighter.turn::after{animation:none !important}
+    .callout.show{animation:none; opacity:1}
+  }
+</style>
+</head>
+<body>
+<header class="stall"><span class="wordmark">T<span class="o">O</span>MAT<span class="o">O</span>NATER</span></header>
+
+<div class="wrap">
+
+  <!-- ===== LANDING (start a duel) ===== -->
+  <section id="landing" class="screen" hidden>
+    <div class="lede">
+      <div class="hero-cats">
+        <img src="pics/throw.png" alt="" />
+        <span class="mid">🍅</span>
+        <img class="evc" src="pics/evade.png" alt="" />
+      </div>
+      <h2>A tomato duel across the map</h2>
+      <p>You throw, they dodge — then you swap. The tomato flies at <b>100&nbsp;km/h</b> between your two real locations, and they have until it lands to get out of the way. Miss it and you score. First to the target wins.</p>
+    </div>
+    <div class="panel mt">
+      <div class="opt-row">
+        <label>Pace</label>
+        <div class="opts" id="paceOpts" role="group" aria-label="Pace">
+          <button class="chip" data-pace="blitz" aria-pressed="true">Blitz<small>Flight compressed to ~20&nbsp;s–4&nbsp;min. Play a session together now.</small></button>
+          <button class="chip" data-pace="real" aria-pressed="false">Real flight<small>Literal 100&nbsp;km/h — dodging takes hours. Slow &amp; romantic.</small></button>
+        </div>
+      </div>
+      <div class="opt-row">
+        <label>Play to</label>
+        <div class="opts" id="targetOpts" role="group" aria-label="Target score">
+          <button class="chip sm" data-target="5" aria-pressed="false">5</button>
+          <button class="chip sm" data-target="10" aria-pressed="true">10</button>
+          <button class="chip sm" data-target="15" aria-pressed="false">15</button>
+          <button class="chip sm" data-target="21" aria-pressed="false">21</button>
+        </div>
+      </div>
+      <button class="btn tomato big mt" id="createBtn">Start the duel</button>
+      <div class="errline" id="landErr"></div>
+    </div>
+  </section>
+
+  <!-- ===== JOIN (opened a share link) ===== -->
+  <section id="join" class="screen panel" hidden>
+    <div class="center">
+      <div class="hero-cats"><img src="pics/throw.png" alt="" /><span class="mid">🍅</span><img class="evc" src="pics/evade.png" alt="" /></div>
+      <h2 id="joinTitle">You've been challenged!</h2>
+      <p class="muted mt" id="joinSub">Someone wants to throw a tomato at you.</p>
+      <button class="btn tomato big mt" id="joinBtn">Join the duel</button>
+      <div class="errline" id="joinErr"></div>
+    </div>
+  </section>
+
+  <!-- ===== SETUP (name + location) ===== -->
+  <section id="setup" class="screen panel" hidden>
+    <h2 class="center" id="setupTitle">You're Player 1</h2>
+    <label for="nameInput">Your name</label>
+    <input id="nameInput" type="text" maxlength="14" placeholder="e.g. Emre" autocomplete="off" />
+    <label>Your location <span class="muted">(sets how far the tomato has to fly)</span></label>
+    <div class="opts mt">
+      <button class="btn ghost" id="geoBtn" style="flex:1; font-size:1rem">📍 Use my location</button>
+    </div>
+    <div class="geo-status" id="geoStatus">We only use this to measure the distance between you two.</div>
+    <div id="manualWrap" hidden>
+      <label for="cityInput">…or type your city</label>
+      <div class="share">
+        <input id="cityInput" type="text" placeholder="e.g. Izmir" autocomplete="off" />
+        <button class="btn ghost" id="cityBtn" style="font-size:.95rem">Find</button>
+      </div>
+    </div>
+    <button class="btn tomato big mt" id="saveBtn" disabled>Save &amp; continue</button>
+    <button class="btn ghost mt" id="toggleManual" style="width:100%; font-size:.9rem">Location blocked? Type a city instead</button>
+    <div class="errline" id="setupErr"></div>
+  </section>
+
+  <!-- ===== WAITING (share link) ===== -->
+  <section id="waiting" class="screen panel" hidden>
+    <h2 class="center">Almost ready…</h2>
+    <p class="muted center mt">Send this link to your opponent. They open it on their own phone to join.</p>
+    <div class="share">
+      <input id="shareLink" type="text" readonly />
+      <button class="btn butter" id="copyBtn" style="font-size:.95rem">Copy</button>
+    </div>
+    <div class="status-dots">
+      <div class="row"><span class="dot on"></span><span id="st1">You're in.</span></div>
+      <div class="row"><span class="dot" id="dot2"></span><span id="st2">Waiting for your opponent to join…</span></div>
+      <div class="row"><span class="dot" id="dot3"></span><span id="st3">Waiting for both locations…</span></div>
+    </div>
+    <div class="waiting-anim">🍅</div>
+  </section>
+
+  <!-- ===== ARENA ===== -->
+  <section id="arena" class="screen" hidden>
+    <div class="board">
+      <div class="crate" id="crate1"><span class="role" id="role1">Thrower</span>
+        <div class="pname" id="name1">P1</div><div class="pcity" id="city1"></div>
+        <div class="score" id="score1">0</div><div class="meta" id="meta1">Lv 1 · 100 km/h</div></div>
+      <div class="vs">vs</div>
+      <div class="crate evader" id="crate2"><span class="role" id="role2">Evader</span>
+        <div class="pname" id="name2">P2</div><div class="pcity" id="city2"></div>
+        <div class="score" id="score2">0</div><div class="meta" id="meta2">Lv 1 · 100 km/h</div></div>
+    </div>
+
+    <div class="stage" id="stage">
+      <div class="fighter" id="fighterL"><span class="facing" id="faceL"><img class="catimg" id="catL" src="pics/throw.png" alt="Your cat" /></span></div>
+      <div class="fighter" id="fighterR"><span class="facing flip" id="faceR"><img class="catimg" id="catR" src="pics/evade.png" alt="Opponent's cat" /></span></div>
+      <div id="tomato" aria-hidden="true">
+        <svg viewBox="0 0 40 40">
+          <path d="M20 6c-1 0-3-3-5-3 2 1 2 3 3 4-2-1-4-1-5 0 2 0 3 1 4 2" fill="#4a8f3a"/>
+          <circle cx="20" cy="24" r="13" fill="#EA3B22"/>
+          <circle cx="20" cy="24" r="13" fill="none" stroke="#C22A15" stroke-width="1.2"/>
+          <ellipse cx="15" cy="19" rx="3.4" ry="2.2" fill="#ff7a63" opacity=".8"/>
+        </svg>
+      </div>
+      <div class="callout" id="callout"></div>
+    </div>
+
+    <div class="deck panel">
+      <!-- my turn to throw -->
+      <div id="ctlThrow" hidden>
+        <div class="prompt">Your turn — time your throw at <b id="throwTargetName">them</b>!</div>
+        <div class="meter" id="meter"><div class="fill" id="meterFill"></div><div class="danger"></div><div class="lbl" id="meterLbl">Power</div></div>
+        <button class="btn tomato big" id="throwBtn">Throw!</button>
+        <div class="hint">More power = faster tomato = less time to dodge. Past the striped zone it might fly wild.</div>
+      </div>
+      <!-- waiting for opponent to throw -->
+      <div id="ctlWaitThrow" hidden class="center">
+        <div class="waiting-anim">🎯</div>
+        <div class="prompt"><b id="waitThrowName">They</b> are lining up a throw…</div>
+        <div class="hint">Keep this open — you'll need to dodge.</div>
+      </div>
+      <!-- my tomato in flight -->
+      <div id="ctlWaitLand" hidden class="center">
+        <div class="prompt">Your tomato is screaming toward <b id="flightTargetName">them</b> 🍅</div>
+        <div class="countdown" id="landCountdown">—</div>
+        <div class="hint" id="landHint"></div>
+      </div>
+      <!-- incoming — dodge -->
+      <div id="ctlDodge" hidden class="center">
+        <div class="prompt"><span class="evb">Incoming!</span> Dodge before it lands.</div>
+        <div class="countdown" id="dodgeCountdown">—</div>
+        <button class="btn tomato big" id="dodgeBtn">DODGE!</button>
+        <div class="hint" id="dodgeHint"></div>
+      </div>
+    </div>
+
+    <div class="center mt"><button class="btn ghost" id="quitBtn" style="font-size:.9rem; padding:.55rem 1rem">Leave duel</button></div>
+  </section>
+
+  <!-- ===== GAME OVER ===== -->
+  <section id="gameover" class="screen panel" hidden>
+    <img class="winavatar" id="winAvatar" src="pics/throw.png" alt="" />
+    <h2 id="winTitle">Winner!</h2>
+    <div class="finalscore" id="finalScore">—</div>
+    <p class="muted" id="winFlavor"></p>
+    <button class="btn tomato big mt" id="newBtn">Start a new duel</button>
+  </section>
+
+</div>
+
+<footer>Made with a splat of <span class="heart">🍅</span> · two phones, one tomato</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const api = async (path, opts) => {
+    const r = await fetch("/api/" + path, opts);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || ("Error " + r.status));
+    return data;
+  };
+  const post = (path, body) => api(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+
+  // ---- credentials per game (localStorage) ----
+  const CRED_KEY = "tomatonater.creds";
+  const loadCreds = () => { try { return JSON.parse(localStorage.getItem(CRED_KEY)) || {}; } catch { return {}; } };
+  const saveCred = (id, cred) => { const all = loadCreds(); all[id] = cred; try { localStorage.setItem(CRED_KEY, JSON.stringify(all)); } catch {} };
+  const getCred = (id) => loadCreds()[id];
+
+  // ---- app state ----
+  let gid = null, token = null, seat = 0;
+  let state = null, offset = 0, lastSeq = -1, firstRender = true, lastFlightLaunch = null;
+  let pollTimer = null, tickTimer = null, meterRaf = null, settingUp = false, pendingLoc = null, pollActive = false;
+  let throwerImg = null, evaderImg = null;
+
+  const screens = ["landing", "join", "setup", "waiting", "arena", "gameover"];
+  const show = (name) => screens.forEach((s) => { $(s).hidden = s !== name; });
+  const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 2600); };
+  const serverNow = () => Date.now() + offset;
+
+  const fmtDur = (ms) => {
+    if (ms < 0) ms = 0;
+    const s = Math.ceil(ms / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m`;
+    if (m > 0) return `${m}m ${String(sec).padStart(2, "0")}s`;
+    return `${sec}s`;
+  };
+
+  // ================= LANDING =================
+  const pickGroup = (groupId) => {
+    const btns = [...$(groupId).querySelectorAll(".chip")];
+    btns.forEach((b) => b.addEventListener("click", () => btns.forEach((x) => x.setAttribute("aria-pressed", x === b))));
+    return () => btns.find((b) => b.getAttribute("aria-pressed") === "true");
+  };
+  const getPace = pickGroup("paceOpts");
+  const getTarget = pickGroup("targetOpts");
+
+  $("createBtn").addEventListener("click", async () => {
+    $("createBtn").disabled = true; $("landErr").textContent = "";
+    try {
+      const res = await post("game", { pace: getPace().dataset.pace, target: +getTarget().dataset.target });
+      gid = res.id; token = res.token; seat = res.seat;
+      saveCred(gid, { token, seat });
+      history.replaceState(null, "", "?g=" + gid);
+      settingUp = true; renderSetup();
+    } catch (e) { $("landErr").textContent = e.message; }
+    finally { $("createBtn").disabled = false; }
+  });
+
+  // ================= JOIN =================
+  $("joinBtn").addEventListener("click", async () => {
+    $("joinBtn").disabled = true; $("joinErr").textContent = "";
+    try {
+      const res = await post("join", { id: gid });
+      token = res.token; seat = res.seat;
+      saveCred(gid, { token, seat });
+      settingUp = true; renderSetup();
+    } catch (e) { $("joinErr").textContent = e.message; $("joinBtn").disabled = false; }
+  });
+
+  // ================= SETUP =================
+  function renderSetup() {
+    settingUp = true;
+    $("setupTitle").textContent = "You're Player " + seat;
+    $("saveBtn").disabled = !pendingLoc;
+    show("setup");
+    startPolling(); // keep watching opponent status in the background
+  }
+
+  $("toggleManual").addEventListener("click", () => {
+    const w = $("manualWrap"); w.hidden = !w.hidden;
+  });
+
+  $("geoBtn").addEventListener("click", () => {
+    if (!navigator.geolocation) { $("geoStatus").textContent = "This browser can't share location — type a city instead."; $("manualWrap").hidden = false; return; }
+    $("geoStatus").textContent = "Getting your location…"; $("geoBtn").disabled = true;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      let city = "";
+      try {
+        const g = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`).then((r) => r.json());
+        city = g.city || g.locality || g.principalSubdivision || g.countryName || "";
+      } catch {}
+      pendingLoc = { lat, lng, city: city || "Somewhere" };
+      $("geoStatus").innerHTML = `Found you in <b style="color:var(--butter)">${pendingLoc.city}</b>. Ready!`;
+      $("saveBtn").disabled = false; $("geoBtn").disabled = false;
+    }, () => {
+      $("geoStatus").textContent = "Couldn't get location. Type your city instead.";
+      $("manualWrap").hidden = false; $("geoBtn").disabled = false;
+    }, { enableHighAccuracy: false, timeout: 10000 });
+  });
+
+  $("cityBtn").addEventListener("click", async () => {
+    const q = $("cityInput").value.trim();
+    if (!q) return;
+    $("geoStatus").textContent = "Searching…";
+    try {
+      const r = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1`).then((x) => x.json());
+      const hit = r.results && r.results[0];
+      if (!hit) { $("geoStatus").textContent = "No city found by that name — try another spelling."; return; }
+      pendingLoc = { lat: hit.latitude, lng: hit.longitude, city: hit.name + (hit.country_code ? ", " + hit.country_code : "") };
+      $("geoStatus").innerHTML = `Using <b style="color:var(--butter)">${pendingLoc.city}</b>. Ready!`;
+      $("saveBtn").disabled = false;
+    } catch { $("geoStatus").textContent = "Search failed — check your connection."; }
+  });
+
+  $("saveBtn").addEventListener("click", async () => {
+    if (!pendingLoc) return;
+    $("saveBtn").disabled = true; $("setupErr").textContent = "";
+    try {
+      await post("setup", { id: gid, token, name: $("nameInput").value.trim(), lat: pendingLoc.lat, lng: pendingLoc.lng, city: pendingLoc.city });
+      settingUp = false;
+      await poll(true);
+    } catch (e) { $("setupErr").textContent = e.message; $("saveBtn").disabled = false; }
+  });
+
+  // ================= POLLING =================
+  // Adaptive polling: quick while a tomato is in flight so nobody misses an
+  // incoming throw, relaxed otherwise.
+  function startPolling() { if (pollActive) return; pollActive = true; pollLoop(); }
+  function stopPolling() { pollActive = false; clearTimeout(pollTimer); pollTimer = null; }
+  async function pollLoop() {
+    await poll();
+    if (!pollActive) return;
+    clearTimeout(pollTimer);
+    const delay = (state && state.flight) ? 900 : 1800;
+    pollTimer = setTimeout(pollLoop, delay);
+  }
+  async function poll() {
+    if (!gid) return;
+    try {
+      const st = await api(`state?id=${gid}&token=${token || ""}`);
+      offset = st.now - Date.now();
+      state = st;
+      render(st);
+    } catch (e) { /* transient network — keep last state */ }
+  }
+
+  // ================= RENDER =================
+  function render(st) {
+    // choose screen
+    if (st.winner) { settingUp = false; renderGameOver(st); return; }
+    const me = seat ? st.players[seat - 1] : null;
+    if (settingUp) { show("setup"); updateWaitingDots(st); return; }
+    if (!me || !me.located) { renderSetup(); return; }
+    const opp = st.players[seat === 1 ? 1 : 0];
+    if (!opp.joined || !opp.located) { show("waiting"); updateWaitingDots(st); return; }
+    renderArena(st);
+  }
+
+  function updateWaitingDots(st) {
+    const opp = st.players[seat === 1 ? 1 : 0];
+    const me = st.players[seat - 1];
+    $("dot2").classList.toggle("on", !!opp.joined);
+    $("st2").textContent = opp.joined ? `${opp.name || "Player 2"} joined.` : "Waiting for your opponent to join…";
+    const bothLoc = me.located && opp.located;
+    $("dot3").classList.toggle("on", bothLoc);
+    $("st3").textContent = bothLoc ? "Both located — starting!" : (me.located ? "Waiting for their location…" : "Set your location above.");
+    $("shareLink").value = location.origin + location.pathname + "?g=" + gid;
+  }
+
+  function renderArena(st) {
+    show("arena");
+    const p1 = st.players[0], p2 = st.players[1];
+    $("name1").textContent = p1.name || "Player 1"; $("name2").textContent = p2.name || "Player 2";
+    $("city1").textContent = p1.city || ""; $("city2").textContent = p2.city || "";
+    $("score1").textContent = p1.points; $("score2").textContent = p2.points;
+    $("meta1").textContent = `Lv ${p1.level} · ${p1.speed} km/h`;
+    $("meta2").textContent = `Lv ${p2.level} · ${p2.speed} km/h`;
+
+    const throwerSeat = st.flight ? st.flight.from : st.thrower;
+    const c1 = $("crate1"), c2 = $("crate2");
+    [c1, c2].forEach((c) => c.classList.remove("active", "evader", "you"));
+    (throwerSeat === 1 ? c1 : c2).classList.add("active");
+    (throwerSeat === 1 ? c2 : c1).classList.add("active", "evader");
+    $("role1").textContent = throwerSeat === 1 ? "Thrower" : "Evader";
+    $("role2").textContent = throwerSeat === 1 ? "Evader" : "Thrower";
+    (seat === 1 ? c1 : c2).classList.add("you");
+
+    // fire animation for a newly-resolved event
+    if (st.event && st.event.seq > lastSeq) {
+      if (!firstRender) playEvent(st.event, st);
+      lastSeq = st.event.seq;
+    }
+    firstRender = false;
+
+    // control deck
+    const opp = st.players[seat === 1 ? 1 : 0];
+    ["ctlThrow", "ctlWaitThrow", "ctlWaitLand", "ctlDodge"].forEach((c) => $(c).hidden = true);
+    if (st.flight) {
+      stopMeter();
+      if (st.flight.evader === seat) {
+        $("ctlDodge").hidden = false;
+        $("dodgeBtn").disabled = false;
+      } else {
+        $("ctlWaitLand").hidden = false;
+        $("flightTargetName").textContent = opp.name || "them";
+        $("landHint").textContent = st.pace === "real"
+          ? `${st.flight.dist.toLocaleString()} km at ${st.flight.speed} km/h. Sit tight.`
+          : `${st.flight.dist.toLocaleString()} km, compressed.`;
+      }
+      positionTomato(st);
+    } else {
+      if (st.thrower === seat) {
+        $("ctlThrow").hidden = false; $("throwTargetName").textContent = opp.name || "them";
+        startMeter();
+      } else {
+        $("ctlWaitThrow").hidden = false; $("waitThrowName").textContent = opp.name || "They";
+        stopMeter();
+      }
+      $("tomato").style.opacity = 0; $("tomato").classList.remove("spin");
+    }
+  }
+
+  // countdown + tomato flight (runs every 250ms while arena is shown)
+  function startTick() { if (!tickTimer) tickTimer = setInterval(tick, 250); }
+  function tick() {
+    if (!state || !state.flight || $("arena").hidden) return;
+    const remain = state.flight.arrive - serverNow();
+    const txt = fmtDur(remain);
+    if (state.flight.evader === seat) {
+      const el = $("dodgeCountdown"); el.textContent = txt;
+      el.classList.toggle("soon", remain < 8000);
+      $("dodgeHint").textContent = state.pace === "real" ? "Tap dodge any time before it lands." : "Get ready — tap the moment you're set.";
+    } else {
+      $("landCountdown").textContent = txt;
+    }
+    positionTomato(state);
+  }
+  function positionTomato(st) {
+    const t = $("tomato"), stage = $("stage");
+    const total = st.flight.arrive - st.flight.launch;
+    const prog = Math.min(1, Math.max(0, (serverNow() - st.flight.launch) / total));
+    const w = stage.clientWidth, span = w - 40 - stage.clientWidth * 0.16;
+    // thrower is always drawn on the left; tomato flies left -> right toward the evader
+    t.style.opacity = 1; t.classList.add("spin");
+    t.style.left = (stage.clientWidth * 0.14 + span * prog) + "px";
+    t.style.top = (42 - Math.sin(prog * Math.PI) * 14) + "%";
+  }
+
+  // ================= POWER METER =================
+  let power = 0, dir = 1, mLast = 0;
+  function startMeter() {
+    if (meterRaf) return;
+    power = 0; dir = 1; mLast = performance.now();
+    const step = (now) => {
+      const dt = Math.min(now - mLast, 60); mLast = now;
+      power += dir * dt * 0.11;
+      if (power >= 100) { power = 100; dir = -1; } if (power <= 0) { power = 0; dir = 1; }
+      $("meterFill").style.width = power + "%"; $("meterLbl").textContent = Math.round(power) + "% power";
+      meterRaf = requestAnimationFrame(step);
+    };
+    meterRaf = requestAnimationFrame(step);
+  }
+  function stopMeter() { if (meterRaf) { cancelAnimationFrame(meterRaf); meterRaf = null; } }
+
+  $("throwBtn").addEventListener("click", async () => {
+    const p = Math.round(power); stopMeter();
+    $("throwBtn").disabled = true;
+    $("thrower").classList.add("chuck"); setTimeout(() => $("thrower").classList.remove("chuck"), 300);
+    try {
+      const res = await post("throw", { id: gid, token, power: p });
+      if (res.wild) { fireCallout("WILD THROW!", "wild"); toast("Too much power — it sailed over the fence. Turn lost!"); }
+      await poll(true);
+    } catch (e) { toast(e.message); }
+    finally { $("throwBtn").disabled = false; }
+  });
+
+  $("dodgeBtn").addEventListener("click", async () => {
+    $("dodgeBtn").disabled = true;
+    try {
+      const res = await post("dodge", { id: gid, token });
+      if (res.dodged) { $("evader").classList.add("dodge"); setTimeout(() => $("evader").classList.remove("dodge"), 500); fireCallout("DODGED!", "safe"); }
+      else { toast("Too late — splat!"); }
+      await poll(true);
+    } catch (e) { toast(e.message); $("dodgeBtn").disabled = false; }
+  });
+
+  // ================= EVENT FX =================
+  function playEvent(ev, st) {
+    if (ev.type === "splat") {
+      $("stage").classList.add("shake"); setTimeout(() => $("stage").classList.remove("shake"), 300);
+      splatMark(); fireCallout("SPLAT!", "splat");
+      const by = st.players[ev.by - 1].name || ("Player " + ev.by);
+      const to = st.players[ev.to - 1].name || ("Player " + ev.to);
+      toast(ev.by === seat ? `You splatted ${to}! +1` : `${by} splatted you!`);
+      if (ev.levelUp) setTimeout(() => toast(`${by} leveled up — faster tomatoes now!`), 900);
+    } else if (ev.type === "dodged") {
+      $("evader").classList.add("dodge"); setTimeout(() => $("evader").classList.remove("dodge"), 500);
+      fireCallout("DODGED!", "safe");
+    } else if (ev.type === "wild") {
+      fireCallout("WILD THROW!", "wild");
+    }
+  }
+  function fireCallout(text, cls) {
+    const c = $("callout"); c.textContent = text; c.className = "callout show " + (cls || "");
+    setTimeout(() => (c.className = "callout"), 1100);
+  }
+  function splatMark() {
+    const s = document.createElement("div"); s.className = "splatmark";
+    s.innerHTML = `<svg viewBox="0 0 100 100"><g fill="#EA3B22"><circle cx="50" cy="50" r="30"/><circle cx="24" cy="40" r="10"/><circle cx="78" cy="46" r="12"/><circle cx="40" cy="80" r="9"/><circle cx="70" cy="78" r="7"/></g><g fill="#C22A15"><circle cx="45" cy="46" r="4"/><circle cx="60" cy="56" r="3"/></g></svg>`;
+    s.style.right = "1.2rem"; s.style.top = "30%";
+    $("stage").appendChild(s); requestAnimationFrame(() => s.classList.add("go"));
+    setTimeout(() => s.remove(), 2200);
+  }
+
+  // ================= GAME OVER =================
+  function renderGameOver(st) {
+    show("gameover");
+    stopMeter();
+    const p1 = st.players[0], p2 = st.players[1];
+    const win = st.winner, winP = st.players[win - 1], loseP = st.players[win === 1 ? 1 : 0];
+    $("winTitle").textContent = (win === seat ? "You win! 🏆" : `${winP.name || "Player " + win} wins!`);
+    $("finalScore").innerHTML = `${p1.name || "P1"} ${p1.points} &nbsp;–&nbsp; ${p2.points} ${p2.name || "P2"}`;
+    $("winFlavor").textContent = win === seat
+      ? `${loseP.name || "They"} will be picking tomato out of their fur for a week.`
+      : `${winP.name || "They"} out-splatted you. Rematch?`;
+  }
+
+  $("copyBtn").addEventListener("click", async () => {
+    const link = $("shareLink").value;
+    try { await navigator.clipboard.writeText(link); toast("Link copied!"); }
+    catch { $("shareLink").select(); toast("Select and copy the link."); }
+  });
+  $("quitBtn").addEventListener("click", () => { if (confirm("Leave this duel?")) newDuel(); });
+  $("newBtn").addEventListener("click", newDuel);
+  function newDuel() {
+    stopPolling(); gid = token = null; seat = 0; state = null; firstRender = true; lastSeq = -1; pendingLoc = null; settingUp = false;
+    history.replaceState(null, "", location.pathname);
+    initLanding();
+  }
+
+  // keyboard: space/enter for the primary action
+  document.addEventListener("keydown", (e) => {
+    if ($("arena").hidden) return;
+    if (e.code === "Space" || e.code === "Enter") {
+      if (!$("ctlThrow").hidden && !$("throwBtn").disabled) { e.preventDefault(); $("throwBtn").click(); }
+      else if (!$("ctlDodge").hidden && !$("dodgeBtn").disabled) { e.preventDefault(); $("dodgeBtn").click(); }
+    }
+  });
+
+  // ================= BOOT =================
+  function initLanding() {
+    ["paceOpts", "targetOpts"].forEach(() => {}); // groups already wired
+    show("landing");
+  }
+  async function boot() {
+    startTick();
+    const urlId = new URL(location).searchParams.get("g");
+    if (!urlId) { initLanding(); return; }
+    gid = urlId;
+    const cred = getCred(gid);
+    if (cred) { token = cred.token; seat = cred.seat; startPolling(); return; }
+    // new visitor to a shared link — offer to join (as seat 2)
+    try {
+      const st = await api(`state?id=${gid}`);
+      if (st.players[1].joined) {
+        // both seats taken
+        $("joinTitle").textContent = "This duel is full";
+        $("joinSub").textContent = "Both tomato-throwers are already in. Start your own duel instead.";
+        $("joinBtn").textContent = "Start a new duel"; $("joinBtn").onclick = newDuel;
+        show("join");
+      } else {
+        const host = st.players[0].name;
+        $("joinSub").textContent = host ? `${host} wants to throw a tomato at you. Ready to dodge?` : "Someone wants to throw a tomato at you.";
+        show("join");
+      }
+    } catch (e) {
+      $("joinTitle").textContent = "Hmm…"; $("joinSub").textContent = e.message + " — start a fresh duel?";
+      $("joinBtn").textContent = "Start a new duel"; $("joinBtn").onclick = newDuel; show("join");
+    }
+  }
+  boot();
+})();
+</script>
+</body>
+</html>

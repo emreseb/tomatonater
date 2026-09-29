@@ -1,0 +1,15 @@
+{
+  "name": "tomatonater",
+  "version": "1.0.0",
+  "description": "A two-player, two-phone tomato duel. You throw a tomato; it flies at 100 km/h across the real distance between your two locations; your opponent has until it lands to dodge. Miss and the thrower scores. Every 10 points → +10 km/h. First to the target wins.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "wrangler": "^4.86.0"
+  }
+}
