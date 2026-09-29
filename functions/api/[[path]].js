@@ -79,6 +79,10 @@ async function maybeResolve(env, g) {
 
 function publicState(g, seat) {
   const flying = g.flight_status === "flying";
+  // Only the two players (holding a valid seat token) may see location-derived
+  // fields — city and distance. Anyone else with the link gets names + status
+  // only, enough to render the join screen but nothing about where you are.
+  const authed = seat === 1 || seat === 2;
   return {
     now: Date.now(),
     id: g.id,
@@ -88,13 +92,13 @@ function publicState(g, seat) {
     thrower: g.thrower,
     winner: g.winner,
     you: seat,
-    dist: g.p1_lat != null && g.p2_lat != null
+    dist: authed && g.p1_lat != null && g.p2_lat != null
       ? Math.round(haversine(g.p1_lat, g.p1_lng, g.p2_lat, g.p2_lng)) : null,
     players: [
-      { seat: 1, name: g.p1_name, city: g.p1_city, points: g.p1_points,
+      { seat: 1, name: g.p1_name, city: authed ? g.p1_city : null, points: g.p1_points,
         coins: g.p1_coins, level: levelFor(g.p1_points), speed: speedFor(g.p1_points),
         located: g.p1_lat != null, joined: g.p1_token != null, left: !!g.p1_left },
-      { seat: 2, name: g.p2_name, city: g.p2_city, points: g.p2_points,
+      { seat: 2, name: g.p2_name, city: authed ? g.p2_city : null, points: g.p2_points,
         coins: g.p2_coins, level: levelFor(g.p2_points), speed: speedFor(g.p2_points),
         located: g.p2_lat != null, joined: g.p2_token != null, left: !!g.p2_left },
     ],
@@ -104,7 +108,7 @@ function publicState(g, seat) {
       launch: g.flight_launch,
       arrive: g.flight_arrive,
       speed: Math.round(g.flight_speed),
-      dist: Math.round(g.flight_dist),
+      dist: authed ? Math.round(g.flight_dist) : null,
       power: g.flight_power,
     } : null,
     event: g.last_event ? { seq: g.evseq, ...JSON.parse(g.last_event) } : null,
@@ -147,9 +151,11 @@ async function setup(env, request) {
   const seat = seatOf(g, b.token);
   if (!seat) return err("You're not a player in this duel.", 403);
   const name = String(b.name || "").slice(0, 14).trim() || `Player ${seat}`;
-  const lat = Number(b.lat), lng = Number(b.lng);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180)
+  const rawLat = Number(b.lat), rawLng = Number(b.lng);
+  if (!Number.isFinite(rawLat) || !Number.isFinite(rawLng) || Math.abs(rawLat) > 90 || Math.abs(rawLng) > 180)
     return err("Bad coordinates.");
+  // Round to ~11 km even if the client didn't — never persist an exact location.
+  const lat = Math.round(rawLat * 10) / 10, lng = Math.round(rawLng * 10) / 10;
   const city = String(b.city || "Somewhere").slice(0, 40);
   const p = seat === 1 ? "p1" : "p2";
   await env.DB.prepare(
