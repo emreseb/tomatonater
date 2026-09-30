@@ -1,102 +1,135 @@
 # 🍅 Tomatonater
 
-A two-player, two-phone tomato duel. You throw a tomato; it flies at 100 km/h across the real distance between your two locations; your opponent has until it lands to dodge. Miss and the thrower scores. Every 10 points → +10 km/h. First to the target wins.
+**A tomato duel for two phones, across any distance.**
 
-- **Frontend:** `index.html` + `pics/` (static)
-- **Backend:** Cloudflare Pages Function in `functions/api/[[path]].js`
-- **Database:** Cloudflare **D1** (SQLite), schema in `schema.sql`
+One of you winds up and throws a tomato. It sails across the *real* map — flying at 100 km/h over the actual distance between your two locations — and the other person has until it lands to leap out of the way. Dodge in time and you're safe; miss it and you wear the splat while the thrower scores. Then you swap, and go again. The more you land, the faster your tomatoes fly. First to the target score wins.
 
-Everything runs on Cloudflare's free tier.
+It's a silly, flirty little game built for playing with someone you're into — especially long-distance. Two grumpy-but-adorable cats do the throwing and dodging, and the whole thing lives at a link you can text to someone: they open it on their phone, you open it on yours, and the duel is on.
+
+> Live: **https://tomatonater.pages.dev**
 
 ---
 
-## One-time setup
+## How it plays
 
-You need the Cloudflare CLI (`wrangler`) and a free Cloudflare account.
+1. One of you opens the site and taps **Start the duel** — pick a **pace** and a **target score**.
+2. Set your name and share your location, then **send the invite link** to the other person.
+3. They open the link on their own phone, join as the second player, and set their location.
+4. Take turns:
+   - **Throwing?** Time the **power meter** and let it fly. More power = a faster tomato = less time for them to react — but push into the red and it might sail wide and waste your turn.
+   - **Dodging?** Wait for the **INCOMING!** alert, then tap **DODGE** before it lands.
+5. Miss a dodge → the thrower scores. Every **10 points → +10 km/h** on your throws. First to the target wins.
 
-```bash
-npm install -g wrangler        # or: npx wrangler ...
-wrangler login                 # opens the browser to authorize
+### Two paces
+- **Blitz** — the real flight time is compressed to roughly 20 seconds to 4 minutes, so you can play a whole session together in one sitting.
+- **Real flight** — the literal 100 km/h. A tomato thrown across the country genuinely takes *hours* to arrive. Throw one before bed; they dodge it when they wake up. Slow, and a little romantic.
+
+### Nice touches
+- **Pass-free, two-device play** — each phone is its own player; no passing one screen back and forth.
+- **Come back anytime** — your link remembers your seat, so you can close the tab and rejoin later from any device.
+- **You're told when they leave** — and when *both* of you leave, the duel cleans itself up.
+- **Location stays yours** — see [Privacy](#privacy) below.
+
+---
+
+## What's in the repo
+
+It's a tiny full-stack app, all on Cloudflare's free tier:
+
+```
+public/
+  index.html          the entire game — one self-contained HTML/CSS/JS file
+  pics/
+    throw.png         the throwing cat
+    evade.png         the dodging cat
+functions/
+  api/[[path]].js     the backend API (one Cloudflare Pages Function)
+schema.sql            the database table
+wrangler.toml         Cloudflare config (Pages + the D1 binding)
+maint/index.html      a maintenance holding page, for planned downtime
 ```
 
-### 1. Create the database
+- **Frontend** — a single static page with a few screens (start → join → set up → the arena → game over). It polls the backend a couple of times a second to stay in sync.
+- **Backend** — one function handling a handful of JSON endpoints: `POST /api/game`, `/join`, `/setup`, `/throw`, `/dodge`, `/leave`, and `GET /api/state`.
+- **Database** — Cloudflare **D1** (SQLite). One small row per duel holds the whole game: both players, whose turn it is, the score, and the tomato currently in flight.
+
+---
+
+## Privacy
+
+The game needs to know *how far apart* you are, but it's careful with that:
+
+- Your coordinates are **rounded to ~11 km on your device** before anything is sent — so your exact spot never leaves your phone, and the database only ever holds a fuzzy, city-level point.
+- Your opponent only ever sees your **city name** and a **rough distance** — never coordinates.
+- Anyone who merely has the link (without being a player) sees **nothing about location** at all.
+
+---
+
+## Run it yourself
+
+You'll need a free [Cloudflare](https://dash.cloudflare.com/sign-up) account and the `wrangler` CLI.
+
+```bash
+npm install -g wrangler     # or just use: npx wrangler ...
+wrangler login              # opens the browser to authorize
+```
+
+**1. Create the database** and paste the printed `database_id` into `wrangler.toml`:
 
 ```bash
 wrangler d1 create tomatonater
 ```
 
-This prints a `database_id`. Open `wrangler.toml` and paste it into:
-
-```toml
-database_id = "PASTE_YOUR_D1_DATABASE_ID_HERE"
-```
-
-### 2. Create the table
+**2. Create the table** (both the local copy and the real one):
 
 ```bash
-# local copy (for `wrangler pages dev`)
 wrangler d1 execute tomatonater --local  --file=./schema.sql
-# the real remote database
 wrangler d1 execute tomatonater --remote --file=./schema.sql
 ```
 
-### 3. Run it locally (optional but recommended)
-
-The static site lives in `public/`; the API lives in `functions/`. Point dev at `public`:
+**3. Play locally** — the static site is in `public/`, so point dev at it:
 
 ```bash
 wrangler pages dev public
 ```
 
-Open the printed URL (e.g. http://localhost:8788). Geolocation works on `localhost`.
-Open a second browser/incognito window with the same `?g=...` link to play both sides.
+Open the printed URL (e.g. http://localhost:8788), then open the same `?g=...` link in a second window to play both sides. (Geolocation and the copy button need **HTTPS**, which you get on `localhost` and on the live site — but *not* by opening the file directly.)
 
 ---
 
-## Deploy to Cloudflare Pages
+## Deploy
 
-Only `public/` is served (so `wrangler.toml`, `schema.sql`, etc. stay private). The
-project's production branch is **`production`**, so always deploy with `--branch production`
-— otherwise it goes to a preview URL and `tomatonater.pages.dev` won't update:
+Only `public/` is served, so your `wrangler.toml` and `schema.sql` stay private. The project's production branch is **`production`** — always deploy with that flag, or it lands on a preview URL and the live site won't update:
 
 ```bash
 wrangler pages deploy public --branch production
 ```
 
-The **`DB`** binding is applied automatically from `wrangler.toml` on every deploy — no
-dashboard step needed. (If you ever move the D1 binding out of `wrangler.toml`, add it under
-**Workers & Pages → tomatonater → Settings → Functions → D1 database bindings** instead.)
+The **`DB`** binding is applied automatically from `wrangler.toml` — no dashboard step needed.
 
-Your game is live at `https://tomatonater.pages.dev`.
-
-> Tip: to check the live site from a script you'll hit Cloudflare's bot filter (empty/403
-> responses). Check it in a real browser instead.
-
-> Geolocation and the clipboard "Copy" button require **HTTPS**, which Cloudflare Pages gives you automatically. They will not work if you open `index.html` as a local file.
+> **Checking the live site from a script?** Cloudflare's bot filter will reject automated requests (empty or `403` responses). Check it in a real browser instead.
 
 ---
 
-## How to play
+## Data model & housekeeping
 
-1. One of you opens the site and taps **Start the duel** (pick **Blitz** to play now, or **Real flight** for the slow romantic version).
-2. Set your name and share your location, then **send the link** to the other person.
-3. They open the link on their phone, join, and set their location.
-4. Take turns: the thrower charges a **power meter** and throws; the evader taps **DODGE** before the tomato lands.
+The `games` table is one row per duel. Alongside the obvious fields (names, rounded location, points, whose turn, the in-flight tomato), each player already has `*_coins` and `*_upgrades` (JSON) columns reserved for a future **shop** — speed tiers, power-ups, and cosmetics — so adding it won't need a migration.
 
-### Pace
-- **Blitz** — real flight time compressed to ~20 s–4 min. Good for a live session.
-- **Real flight** — literal 100 km/h. A long-distance tomato can take hours; dodge whenever you next open the app. (Push notifications are a natural future add-on so you get pinged when one is incoming.)
+**Leaving:** `POST /api/leave` marks a player as gone and tells the other; when **both** have left, the row is deleted. Re-opening your link auto-clears the flag so you rejoin.
 
----
+**Adding columns later:** migrate the live DB with `ALTER TABLE games ADD COLUMN …` — re-running `schema.sql` won't add columns to an existing table.
 
-## Data model (`games` table)
-
-One row per duel holds everything: both players (name, location, points, coins, `*_left`), whose turn it is, the round, and the tomato currently in flight. Per-player `*_coins` and `*_upgrades` (JSON) columns are already there for the future **shop** — speed tiers, power-ups, and cosmetics — so adding it won't need a schema migration.
-
-**Leaving:** `POST /api/leave` marks a player's `*_left` flag; the other player is shown "they left." When **both** have left, the row is deleted and the session is terminated. A player who re-opens their link and polls again has their own flag auto-cleared (rejoin). If you add columns to `schema.sql` later, migrate the live DB with `ALTER TABLE games ADD COLUMN … ` (a re-run of `schema.sql` won't add columns to an existing table).
-
-To wipe all games during testing:
+**Wipe all games** (handy while testing):
 
 ```bash
 wrangler d1 execute tomatonater --remote --command "DELETE FROM games;"
 ```
+
+---
+
+## Roadmap
+
+- **The shop** — spend coins earned from splats on faster throws, one-off power-ups (a curveball, a shield dodge), and cat/tomato cosmetics. The database is already shaped for it.
+- **Push notifications** — get pinged when a tomato is incoming, which is what "Real flight" mode is really waiting for.
+
+Made with a splat of 🍅 — two phones, one tomato.
